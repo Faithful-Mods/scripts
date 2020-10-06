@@ -40,7 +40,15 @@ echo [2/?] Check settings...
 echo(
 echo ------------------------------------------------------------ 
 
-python py\import.py "%MCVersion%" "%ModsPath%"
+python py\import.py "%MCVersion%"
+
+echo ------------------------------------------------------------
+echo(
+echo [3/?] Import files to GitHub...
+echo(
+echo ------------------------------------------------------------ 
+
+python py\github.py "%MCVersion%"
 
 pause
 exit

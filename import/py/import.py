@@ -1,13 +1,9 @@
-# Import mods resource pack from f32 to github
-# v1.0
-
 import sys
 import os
 import json
 
 MCVersion   = sys.argv[1]
 PackFormat  = 0
-ModsPath    = sys.argv[2]
 
 # need to have an array for all mc versions
 MCVersionArray = [
@@ -32,6 +28,7 @@ def findpackpng():
 	return result
 
 #########
+
 def main():
 	for x,y in MCVersionArray: 
 		if x == MCVersion:
@@ -50,18 +47,6 @@ def main():
 	if PackPNG == False:
 		print('Error when locating the pack.png image, please paste it into the resources/ folder')
 		return 0
-
-	print('\nStart Import with GitHub API\n')
-
-	onlyfiles = next(os.walk('resources/'))[1]
-	NBFiles   = len(onlyfiles) # and not onlyfans
-
-	if NBFiles == 0:
-		print('You need to place all your mods resource in the /resources folder following this : "/resources/<asset_name>/..."')
-		print('Ex: /resources/botania/...')
-		return 0
-
-	print('yes')
 
 	return 0
 
