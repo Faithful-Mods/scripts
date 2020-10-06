@@ -44,10 +44,7 @@ echo(
 echo ------------------------------------------------------------ 
 echo TO USE THIS SCRIPTS, YOU NEED TO BE A MEMBER OF FAITHFUL MODS ORGANIZATION ON GITHUB : https://github.com/Faithful-Mods
 echo(
-set /p Username=GitHub username : 
-set /p Password=GitHub password : 
-echo(
-python py\github_import.py "%MCVersion%" "%Username%" "%Password%"
+python py\github_import.py "%MCVersion%"
 
 echo ------------------------------------------------------------
 echo(

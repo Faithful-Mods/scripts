@@ -1,11 +1,13 @@
 import os
 import sys
+import base64
 from github import Github
-from github import BadCredentialsException
+from github import InputGitTreeElement
+from getpass import getpass
 
 def main(AskedBranch,GHusername,GHpassword):
-	onlyfiles = next(os.walk('resources/'))[1]
-	NBFiles   = len(onlyfiles) # and not onlyfans
+	onlyfiles = next(os.walk('resources'))[1]
+	NBFiles   = len(onlyfiles) # and not onlyfans :)
 
 	# check if files have been placed in the /resources folder
 	if NBFiles == 0:
@@ -23,70 +25,93 @@ def main(AskedBranch,GHusername,GHpassword):
 
 		for FileName in onlyfiles:
 			print('Watching :',FileName)
-			ExistBranch = False
-			ExistRepo   = False
 
-			for repo in repos:
-				# if repository exist:
-				if FileName == repo.name:
-					ExistRepo = True
-					print('[v] -> Repository found, checking branches...')
+			try:
+				repo = g.get_repo(f"Faithful-Mods/{FileName}")
 
-					try:
-						repo.get_branch(branch=AskedBranch)
-					except:
-						print('[x] -> Branch not found, creating one...')
-						
-					else: 
-						print('[v] -> Branch found, merging files...')
-
-			# if repository doesn't exist yet:
-			if ExistRepo == False:
+			## REPOSITORY DOES NOT EXIST
+			except:
 				print('[x] -> Repository not found, creating one...')
 
 				# Information used in mods.json (mods list) & GitHub repos:
 				ModName   = input('      - Mod Name       : ')
 				ModURL    = input('      - CurseForge URL : ')
 				ModNameCF = ModURL.replace('https://www.curseforge.com/minecraft/mc-mods/','')
+				print('      - CurseForge img :',ModNameCF)
 
-				# Create a new repository:
+				# Create a new repository: 
 				organization = g.get_organization("Faithful-Mods")
 				organization.create_repo(
 					FileName, 
 					description=f"Official {ModName} Faithful Resource Pack", 
 					homepage=ModURL, 
 					private=True, 
-					has_issues=False, 
-					has_wiki=False, 
-					has_downloads=False, 
-					has_projects=False, 
+					
 					delete_branch_on_merge=False
 				)
 
-		'''
-		#check if repo already exist:
-		if file == #repo name :
+				## INITIAL COMMIT -> create the default branch
+				repo = g.get_repo(f"Faithful-Mods/{FileName}")
+				repo.create_file("initialcommit.txt", "initial commit", "")
 
-			#loop in all branches to check if branch already exist:
-			for branches in #branches list:
-				if branch == branches:
-					BranchExist = True
-					#merge file into this branch
+			repo = g.get_repo(f"Faithful-Mods/{FileName}")
+
+			## REPOSITORY ALREADY EXIST OR HAS BEEN CREATED
+			print('[v] -> Repository found, checking branches...')
+			try:
+				repo.get_branch(branch=AskedBranch)
+
+			### BRANCH DOES NOT EXIST
+			except:
+				print('[x] -> Branch not found, creating one...')
+
+				# create a new branch
+				try:
+					sb = repo.get_branch('main') # since 1st october 2020, every new repo as main as default branch instead of master
+				except:
+					sb = repo.get_branch('master')
+
+				repo.create_git_ref(ref='refs/heads/' + AskedBranch, sha=sb.commit.sha)
+
+			### BRANCH ALREADY EXIST OR HAS BEEN CREATED
+			## IMPORT FILES
+			print('[v] -> Branch found, looking for files to push...')
+
+			file_list  = []
+			file_names = []
+
+			for root, dirs, files in os.walk(f'resources\\{FileName}'):
+				for file_name in files:
+					file_list.append(os.path.join(root, file_name)) #path
+					file_names.append(file_name)                    #names
+
+			for i in range(0,len(file_list)):
+				print(f'       Found file : {file_names[i]} in {file_list[i]}')
+
+			commit_message = 'upload files'
+			master_ref     = repo.get_git_ref(f'heads/{AskedBranch}')
+			master_sha     = master_ref.object.sha
+			base_tree      = repo.get_git_tree(master_sha)
+
+			element_list = list()
+
+			for entry in file_list:
+				with open(entry, 'rb') as input_file:
+					data = input_file.read()
+				if entry.endswith('.png'):
+					old_file = repo.get_contents(entry)
+					commit = repo.update_file('/' + entry, 'Update PNG content', data, old_file.sha)
+				element = InputGitTreeElement(entry, '100644', 'blob', data)
+				element_list.append(element)
 			
-			if BranchExist == False: # !!! not in the loop to avoid creating branches each time the branch isn't found
-				#create new branch
-				#set branch as a tag (ex: 1-12-2) !!! replace . with -
-				if branch #is higher than others:
-					#set branch as the new master
+			tree = repo.create_git_tree(element_list, base_tree)
+			parent = repo.get_git_commit(master_sha)
+			commit = repo.create_git_commit(commit_message, tree, [parent])
+			master_ref.edit(commit.sha)
 
-		# the repo doesn't exist yet:
-		else:
-			#create repo
-			#create branch
-			#import files
-			#set repo website link to curse forge mod page
-			#set tag to repo (ex:botania,1-12-2) (assetfile name & branch name as tags)
-	'''
 	return 0
 
-main(sys.argv[1],sys.argv[2],sys.argv[3])
+username = input('GitHub username : ')
+password = getpass('GitHub password : ')
+
+main(sys.argv[1],username,password)
