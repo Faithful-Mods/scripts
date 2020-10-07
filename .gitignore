@@ -1,2 +1,4 @@
 
-user_settings/github_token.txt
+# all settings are hidden
+user_settings/**
+user_settings/token_github.txt
