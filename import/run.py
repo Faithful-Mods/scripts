@@ -33,6 +33,10 @@ if CHOICE == 'y' or CHOICE == 'yes' or CHOICE == 'Y' or CHOICE == 'YES':
 	print('------------------------------------------------------------')
 	os.system(f'python py\\github_import.py "{MCVERSION}"')
 
+	# to avoid : delete repo from google when it crashed, will be removed
+	if input('Should delete repo? [y/n] ') == 'y':
+		os.system('python py\\delete_repo.py "cosmeticarmorreworked"')
+
 elif CHOICE == 'n' or CHOICE == 'no' or CHOICE == 'N' or CHOICE == 'NO':
 	print('You need to place all your mods resource in the /resources folder following this : "/resources/<asset_name>/..."\nex: "/resources/minecraft/..." or ex: "/resources/botania/..."')
 

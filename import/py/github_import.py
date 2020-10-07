@@ -39,7 +39,7 @@ def main(AskedBranch):
 		with open('../user_settings/token_github.txt', 'a') as token_file:
 			token_file.write(token)
 
-	# load to github API
+	# login to github API
 	g = Github(token)
 
 	# load repos -> need authentification in github API -> if fail : wrong token
@@ -74,8 +74,7 @@ def main(AskedBranch):
 				# initial commit : used to create a default branch -> allow us to add a new branch (if not: the repo is "empty")
 				repo.create_file("initialcommit.txt", "initial commit", "")
 				init = repo.get_contents("initialcommit.txt")
-				repo.delete_file(init.path, "remove useless file", init.sha, branch='main')
-
+				
 			print('[v] -> Repository found, checking branches...')
 
 			# try to find the right branch : if not found -> create a new one
@@ -106,25 +105,50 @@ def main(AskedBranch):
 				print(f'       Found file : {file_names[i]} in {file_list[i]}')
 
 			commit_message = 'upload files'
-			master_ref     = repo.get_git_ref(ref='refs/heads/' + AskedBranch)
-			master_sha     = master_ref.object.sha
-			base_tree      = repo.get_git_tree(master_sha)
 
+			master_ref = repo.get_git_ref(f'heads/{AskedBranch}')
+
+			master_sha   = master_ref.object.sha
+			base_tree    = repo.get_git_tree(master_sha)
 			element_list = list()
 
-			for entry in file_list:
-				with open(entry, 'rb') as input_file:
-					data = input_file.read()
+			for i, entry in enumerate(file_list):
+				print(f'       Adding file n°{i} : {entry}')
+				
+				if entry.endswith('.png'):
+					with open(entry, 'rb') as input_file:
+						data = input_file.read()
 
-					##### PNG FILES ARE NOT TAKEN INTO ACCOUNT #####
+					blob = repo.create_git_blob(str(base64.b64encode(data)).replace("b'","").replace("'",""), 'utf-8')
+				
+				else:
+					with open(entry, encoding='utf-8', errors='ignore') as input_file:
+						data = input_file.read()
+					
+					blob = repo.create_git_blob(str(data),'utf-8')
 
-				element = InputGitTreeElement(entry, '100644', 'blob', data)
+				if entry == 'resources\\pack.mcmeta'or entry == 'resources\\pack.png':
+					entry = entry.replace('resources\\', '')
+
+				element = InputGitTreeElement(path=entry.replace('resources','assets').replace('\\','/'), mode='100644', type='blob', sha=blob.sha)
 				element_list.append(element)
-			
-			tree   = repo.create_git_tree(element_list, base_tree)
+
+			tree = repo.create_git_tree(element_list, base_tree)
 			parent = repo.get_git_commit(master_sha)
 			commit = repo.create_git_commit(commit_message, tree, [parent])
 			master_ref.edit(commit.sha)
+			
+			try:
+				#delete initial commit when the repo has been created
+				repo.delete_file(init.path, "remove useless file", init.sha, branch=AskedBranch)
+			except:
+				pass
+
+			try:
+				#delete initial commit when the repo has been created
+				repo.delete_file(init.path, "remove useless file", init.sha, branch='main')
+			except:
+				pass
 
 	except BadCredentialsException:
 		print(bcolors.FAIL + 'Wrong Token has been given, change it in your local files : /user_settings/token_github.txt' + bcolors.ENDC)

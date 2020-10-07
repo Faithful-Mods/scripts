@@ -27,7 +27,7 @@ MCVersionArray = [
 
 def createmcmeta(PackFormat):
 	data = {"pack":{"pack_format": PackFormat,"description": "Faithful Mods"}}
-	with open('resources/pack.mcmeta', 'a') as f:
+	with open('resources/pack.mcmeta', 'a', encoding="utf8") as f:
 		json.dump(data, f)
 
 def findpackpng():
@@ -40,12 +40,14 @@ def findpackpng():
 #########
 
 def main():
+	PackFormat = 0
+
 	for x,y in MCVersionArray: 
 		if x == MCVersion:
 			PackFormat = y
 
 	if PackFormat == 0:
-		print('The MC version you specified is invalid or not supported')
+		print(bcolors.FAIL +'The MC version you specified is invalid or not supported' + bcolors.ENDC)
 		return 0
 
 	try:
