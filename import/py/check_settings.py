@@ -2,6 +2,16 @@ import sys
 import os
 import json
 
+class bcolors:
+  HEADER = '\033[95m'
+  OKBLUE = '\033[94m'
+  OKGREEN = '\033[92m'
+  WARNING = '\033[93m'
+  FAIL = '\033[91m'
+  ENDC = '\033[0m'
+  BOLD = '\033[1m'
+  UNDERLINE = '\033[4m'
+
 MCVersion   = sys.argv[1]
 PackFormat  = 0
 
@@ -38,14 +48,19 @@ def main():
 		print('The MC version you specified is invalid or not supported')
 		return 0
 
+	try:
+		os.remove('resources/pack.mcmeta')
+	except:
+		pass
+
 	createmcmeta(PackFormat)
 	PackPNG = findpackpng()
-	print('Selected MC version      :',MCVersion)
-	print('Resource Pack format     :',PackFormat)
-	print('Resource Pack Icon found :',PackPNG)
+	print('Selected MC version      : ' + bcolors.OKBLUE + f'{MCVersion}' + bcolors.ENDC)
+	print('Resource Pack format     : ' + bcolors.OKBLUE + f'{PackFormat}' + bcolors.ENDC)
+	print('Resource Pack Icon found : ' + bcolors.OKBLUE + f'{PackPNG}' + bcolors.ENDC)
 
 	if PackPNG == False:
-		print('Error when locating the pack.png image, please paste it into the resources/ folder')
+		print(bcolors.FAIL +'Error when locating the pack.png image, please paste it into the resources/ folder' + bcolors.ENDC)
 		return 0
 
 	return 0
