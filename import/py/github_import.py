@@ -71,7 +71,7 @@ def CommitToGitHub(USER,FILENAME,ASKED_BRANCH):
 			FILENAME, 
 			description=f"Official {MOD_NAME} Faithful Resource Pack", 
 			homepage=MOD_URL, 
-			private=True, 
+			private=False, 
 			delete_branch_on_merge=False
 		)
 
@@ -178,5 +178,6 @@ def main(BRANCH):
 			print(f' => WATCHING {FILENAME} :')
 			MOD_NAME, MOD_NAME_CF = CommitToGitHub(USER,FILENAME,BRANCH)
 			UpdateTopics(USER,FILENAME)
+			AddToModList(USER,MOD_NAME,MOD_NAME_CF,FILENAME)
 
 main(sys.argv[1])

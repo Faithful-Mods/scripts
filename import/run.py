@@ -23,20 +23,30 @@ print(bcolors.WARNING + 'WARNING :' + bcolors.ENDC + ' getpass is required to us
 MCVERSION = input('Minecraft version : ')
 CHOICE    = input('Have you placed mods resource pack under the /resources folder [Y/N]? ')
 
+try:
+	with open('../user_settings/path_mods_list.txt','r') as modslistfile:
+		MODLISTPATH = modslistfile.read()
+except FileNotFoundError:
+	MODLISTPATH = input('Give your local path to mods.json (file from faithful-mods.github.io/data/<mods.json>) : ')
+	print('Local path saved under /user_settings into path_mods_list.txt')
+	with open('../user_settings/path_mods_list.txt', 'a') as modslistfile:
+		modslistfile.write(MODLISTPATH)
+
 if CHOICE == 'y' or CHOICE == 'yes' or CHOICE == 'Y' or CHOICE == 'YES':
 	print('\n------------------------------------------------------------\n')
 	print(' [' + bcolors.HEADER + '2' + bcolors.ENDC + '/?] Load settings...\n')
 	print('------------------------------------------------------------')
 	os.system(f'python py\\check_settings.py "{MCVERSION}"')
+	print(f'Mods list local path : {MODLISTPATH}')
 	print('\n------------------------------------------------------------\n')
 	print(' [' + bcolors.HEADER + '3' + bcolors.ENDC + '/?] Import Files to GitHub...\n')
 	print('------------------------------------------------------------')
-	os.system(f'python py\\github_import.py "{MCVERSION}"')
+	os.system(f'python py\\github_import.py "{MCVERSION}" "{MODLISTPATH}"')
 
 	
 	# to avoid : delete repo from google when it crashed, will be removed
 	if input('Should delete repo? [y/n] ') == 'y':
-		os.system('python py\\delete_repo.py "cosmeticarmorreworked"')
+		os.system('python py\\delete_repo.py "testingscriptrepo"')
 	
 	
 elif CHOICE == 'n' or CHOICE == 'no' or CHOICE == 'N' or CHOICE == 'NO':
