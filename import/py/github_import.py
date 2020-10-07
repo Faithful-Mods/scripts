@@ -71,7 +71,10 @@ def main(AskedBranch):
 				)
 
 				repo = g.get_repo(f"Faithful-Mods/{FileName}")
+				# initial commit : used to create a default branch -> allow us to add a new branch (if not: the repo is "empty")
 				repo.create_file("initialcommit.txt", "initial commit", "")
+				init = repo.get_contents("initialcommit.txt")
+				repo.delete_file(init.path, "remove useless file", init.sha, branch='main')
 
 			print('[v] -> Repository found, checking branches...')
 
@@ -90,7 +93,7 @@ def main(AskedBranch):
 
 			print('[v] -> Branch found, looking for files to push...')
 
-			file_list  = ['resources/pack.mcmeta','resources/pack.png']
+			file_list  = ['resources\\pack.mcmeta','resources\\pack.png']
 			file_names = ['pack.mcmeta','pack.png']
 
 			# get all files inside mod resource pack
@@ -103,7 +106,7 @@ def main(AskedBranch):
 				print(f'       Found file : {file_names[i]} in {file_list[i]}')
 
 			commit_message = 'upload files'
-			master_ref     = repo.get_git_ref(f'heads/{AskedBranch}')
+			master_ref     = repo.get_git_ref(ref='refs/heads/' + AskedBranch)
 			master_sha     = master_ref.object.sha
 			base_tree      = repo.get_git_tree(master_sha)
 
