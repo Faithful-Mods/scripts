@@ -6,4 +6,10 @@
 {"isNew": false, "branch": "1.7.10"},
 {"isNew": false, "branch": "1.7.10"},
 {"isNew": false, "branch": "1.7.10"},
-{"isNew": false, "branch": "1.7.10"}
+{"isNew": false, "branch": "1.7.10"},
+{"isNew": true, "name": ["e", "cosmeticarmorreworked", "e"], "branch": "1.12.2"},
+{"isNew": true, "name": ["Cosmetic Armor Reworked", "cosmeticarmorreworked", "this is a cool url"], "branch": "1.12.2"},
+{"isNew": true, "name": ["Cosmetic Armor Reworked", "cosmeticarmorreworked", "url"], "branch": "1.12.2"},
+{"isNew": true, "name": ["Cosmetic Armor Reworked", "cosmeticarmorreworked", "thisisamerica"], "branch": "1.12.2"},
+{"isNew": false, "branch": "1.7.10"},
+{"isNew": false, "branch": "1.15.2"}

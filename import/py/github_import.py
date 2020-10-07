@@ -21,17 +21,7 @@ class bcolors:
 EXIT_FAIL   = 1
 EXIT_SUCESS = 0
 
-def main(AskedBranch):
-	onlyfiles = next(os.walk('resources'))[1]
-	NBFiles   = len(onlyfiles) # and not onlyfans :)
-
-	## CHECK IF FILES IN /RESOURCES HAVE BEEN ADDED
-	if NBFiles == 0:
-		print(bcolors.FAIL + 'You need to place all your mods resource in the /resources folder following this : "/resources/<asset_name>/..."\nEx: /resources/botania/...' + bcolors.ENDC)
-		return EXIT_FAIL
-
-	## LOGIN TO GITHUB API WITH TOKEN
-	# try to load token from settings, ask user if not found
+def GetToken():
 	try:
 		with open('../user_settings/token_github.txt','r') as token_file:
 			token = token_file.read()
@@ -41,161 +31,131 @@ def main(AskedBranch):
 		with open('../user_settings/token_github.txt', 'a') as token_file:
 			token_file.write(token)
 
-	# login to github API
-	g = Github(token)
+	return token
 
-	# load repos -> need authentification in github API -> if fail : wrong token
+def CommitToGitHub(USER,FILENAME,ASKED_BRANCH):
+
+	## FIRST : TEST IF REPO EXIST
 	try:
-		# looping in /resources for all files
-		for FileName in onlyfiles:
+		USER.get_repo(f"Faithful-Mods/{FILENAME}")
+	except:
+		print('[' + bcolors.FAIL + 'x' + bcolors.ENDC + '] -> Repository not found, creating one...')
 
-			EXIST_ALREADY_REPO   = True
-			EXIST_ALREADY_BRANCH = True
+		# Information used in mods.json (mods list) & GitHub repos:
+		MOD_NAME    = input('      - Mod Name       : ')
+		MOD_URL     = input('      - CurseForge URL : ')
+		MOD_NAME_CF = MOD_URL.replace('https://www.curseforge.com/minecraft/mc-mods/','')
+		print('      - CurseForge img :',MOD_NAME_CF)
 
-			print('Watching :',FileName)
+		# Create a new repository: 
+		ORGANIZATION = USER.get_organization("Faithful-Mods")
+		ORGANIZATION.create_repo(
+			FILENAME, 
+			description=f"Official {MOD_NAME} Faithful Resource Pack", 
+			homepage=MOD_URL, 
+			private=True, 
+			delete_branch_on_merge=False
+		)
 
-			# try to find an existing repository
-			try:
-				repo = g.get_repo(f"Faithful-Mods/{FileName}")
-			except:
-				EXIST_ALREADY_REPO = False
-				print('[' + bcolors.FAIL + 'x' + bcolors.ENDC + '] -> Repository not found, creating one...')
+		# create default branch with first commit :
+		REPOSITORY = USER.get_repo(f'Faithful-Mods/{FILENAME}')
+		REPOSITORY.create_file("initialcommit", "", "")
+		
+		# reload
+		print('[' + bcolors.OKBLUE + 'o' + bcolors.ENDC + '] -> Reloading...')
+		CommitToGitHub(USER,FILENAME,ASKED_BRANCH)
+	else:
+		print('[' + bcolors.OKGREEN + 'v' + bcolors.ENDC + '] -> Repository found, checking branches...')
+		REPOSITORY = USER.get_repo(f'Faithful-Mods/{FILENAME}')
 
-				# Information used in mods.json (mods list) & GitHub repos:
-				MOD_NAME    = input('      - Mod Name       : ')
-				MOD_URL     = input('      - CurseForge URL : ')
-				MOD_NAME_CF = MOD_URL.replace('https://www.curseforge.com/minecraft/mc-mods/','')
-				print('      - CurseForge img :',MOD_NAME_CF)
+		## THEN : test if the asked branch exist:
+		try:
+			REPOSITORY.get_branch(branch=ASKED_BRANCH)
+		except:
+			print('[' + bcolors.FAIL + 'x' + bcolors.ENDC + '] -> Branch not found, creating one...')
+			DEFAULT_BRANCH = REPOSITORY.get_branch(REPOSITORY.default_branch)
+			REPOSITORY.create_git_ref(ref='refs/heads/' + ASKED_BRANCH, sha=DEFAULT_BRANCH.commit.sha)
 
-				# Create a new repository: 
-				organization = g.get_organization("Faithful-Mods")
-				organization.create_repo(
-					FileName, 
-					description=f"Official {MOD_NAME} Faithful Resource Pack", 
-					homepage=MOD_URL, 
-					private=True, 
-					delete_branch_on_merge=False
-				)
-
-				repo = g.get_repo(f"Faithful-Mods/{FileName}")
-				# initial commit
-				repo.create_file("initialcommit.txt", "initial commit", "")
-				init = repo.get_contents("initialcommit.txt")
-
-			print('[' + bcolors.OKGREEN + 'v' + bcolors.ENDC + '] -> Repository found, looking for branch...')
-
-			# try to find the right branch : if not found -> create a new one
-			try:
-				repo.get_branch(branch=AskedBranch)
-			except:
-				EXIST_ALREADY_BRANCH = False
-
-				print('[' + bcolors.FAIL + 'x' + bcolors.ENDC + '] -> Branch not found, creating one...')
-
-				try:
-					sb = repo.get_branch(repo.default_branch)
-				except:
-					print(bcolors.FAIL + 'Something went wrong when getting default branch' + bcolors.ENDC)
-					return EXIT_FAIL
-	
-				repo.create_git_ref(ref='refs/heads/' + AskedBranch, sha=sb.commit.sha)
-				# create a new branch : copied from default branch : need to be cleaned
-				url = f"https://api.github.com/repos/Faithful-Mods/{FileName}/git/trees/{AskedBranch}?recursive=1"
-				res = requests.get(url).json()
-				
-				### NEED TO FIND A WAY TO DELETE ALL FILES IN THE SAME COMMIT : LESS TIME CONSUMER
-				## it actually make a commit for each deleted file
-				for file in res["tree"]:
-					if file["path"] != 'pack.png':
-						try:
-							repo.delete_file(file["path"], "remove files from the main branch", file["sha"], branch=AskedBranch)
-						except:
-							pass
-				
-			print('[' + bcolors.OKGREEN + 'v' + bcolors.ENDC + '] -> Branch found, looking for files to push...')
-
-			file_list  = ['resources\\pack.mcmeta','resources\\pack.png']
-			file_names = ['pack.mcmeta','pack.png']
+			# reload
+			print('[' + bcolors.OKBLUE + 'o' + bcolors.ENDC + '] -> Reloading...')
+			CommitToGitHub(USER,FILENAME,ASKED_BRANCH)
+		else:
+			print('[' + bcolors.OKGREEN + 'v' + bcolors.ENDC + '] -> Branch found, commit files to branch...')
+			
+			## FINALLY : UPLOAD FILES INTO ASSET MOD FILE TO GITHUB
+			FILESLIST = ['resources\\pack.mcmeta','resources\\pack.png']
+			FILESNAME = ['pack.mcmeta','pack.png']
 
 			# get all files inside mod resource pack
-			for root, dirs, files in os.walk(f'resources\\{FileName}'):
-				for file_name in files:
-					file_list.append(os.path.join(root, file_name)) #path
-					file_names.append(file_name)                    #names
+			for PATH, _, FILES in os.walk(f'resources\\{FILENAME}'):
+				for FILE in FILES:
+					FILESLIST.append(os.path.join(PATH, FILE)) #path into path list
+					FILESNAME.append(FILE)                     #name into names list
 
-			for i in range(0,len(file_list)):
-				print(f'       Found file : {file_names[i]} in {file_list[i]}')
+					print(f'       Found : {FILE} in {PATH+FILE}')
 
-			commit_message = 'upload files'
+			BRANCH_REF  = REPOSITORY.get_git_ref(f'heads/{ASKED_BRANCH}')
+			BRANCH_SHA  = BRANCH_REF.object.sha
+			BRANCH_TREE = REPOSITORY.get_git_tree(BRANCH_SHA)
 
-			master_ref = repo.get_git_ref(f'heads/{AskedBranch}')
+			ELEMENTS_LIST = list()
 
-			master_sha   = master_ref.object.sha
-			base_tree    = repo.get_git_tree(master_sha)
-			element_list = list()
-
-			for i, entry in enumerate(file_list):
-				print(f'       Adding file n°{i+1} : {entry}')
-				
-				if entry.endswith('.png'):
-					with open(entry, 'rb') as input_file:
-						data = input_file.read()
-
-					blob = repo.create_git_blob(str(base64.b64encode(data)).replace("b'","").replace("'",""), 'base64')
-				
-				else:
-					with open(entry, encoding='utf-8', errors='ignore') as input_file:
-						data = input_file.read()
+			for i, ENTRY in enumerate(FILESLIST):
+				print(f'       Adding file n°{i+1} : {ENTRY}')
 					
-					blob = repo.create_git_blob(str(data),'utf-8')
-
-				if entry == 'resources\\pack.mcmeta'or entry == 'resources\\pack.png':
-					entry = entry.replace('resources\\', '')
-
-				element = InputGitTreeElement(path=entry.replace('resources','assets').replace('\\','/'), mode='100644', type='blob', sha=blob.sha)
-				element_list.append(element)
-
-			print(bcolors.OKBLUE + '       Sending commit' + bcolors.ENDC)
-			tree = repo.create_git_tree(element_list, base_tree)
-			parent = repo.get_git_commit(master_sha)
-			commit = repo.create_git_commit(commit_message, tree, [parent])
-			master_ref.edit(commit.sha)
-			
-			try:
-				#delete initial commit when the repo has been created
-				repo.delete_file(init.path, "remove useless file", init.sha, branch=AskedBranch)
-			except:
-				pass
-
-			try:
-				#delete initial commit when the repo has been created
-				repo.delete_file(init.path, "remove useless file", init.sha, branch=repo.default_branch)
-			except:
-				pass
-
-
-			# the branch doesn't exist and have been created : adding it to mods list file 
-			if EXIST_ALREADY_BRANCH == False:
-				# only branch need to be added:
-				if EXIST_ALREADY_REPO == True:
-					ModData = { "isNew": False, "branch": AskedBranch }
+				if ENTRY.endswith('.png'):
+					with open(ENTRY, 'rb') as FILE:
+						DATA = FILE.read()
+					BLOB = REPOSITORY.create_git_blob(str(base64.b64encode(DATA)).replace("b'","").replace("'",""), 'base64')
+						
 				else:
-					ModData = { "isNew": True, "name": [ MOD_NAME, FileName, MOD_NAME_CF ], "branch": AskedBranch }
+					with open(ENTRY, 'r') as FILE:
+						DATA = FILE.read()
+					BLOB = REPOSITORY.create_git_blob(str(DATA),'utf-8')
 
-				with open('resources/mods.json', 'r+') as ModList:
-					if ModList.read() != '':
-						ModList.write(',\n')
-					json.dump(ModData, ModList)
+				if ENTRY == 'resources\\pack.mcmeta'or ENTRY == 'resources\\pack.png':
+					ENTRY = ENTRY.replace('resources\\', '')
 
-			# update repo topics :
-			
+				ELEMENTS_LIST.append(InputGitTreeElement(path=ENTRY.replace('resources','assets').replace('\\','/'), mode='100644', type='blob', sha=BLOB.sha))
+					
+			print(bcolors.OKBLUE + '       Sending commit' + bcolors.ENDC)
+				
+			NEW_BRANCH_TREE = REPOSITORY.create_git_tree(ELEMENTS_LIST, BRANCH_TREE)
+			COMMIT = REPOSITORY.create_git_commit('Upload files from script', NEW_BRANCH_TREE, [REPOSITORY.get_git_commit(BRANCH_SHA)])
+			BRANCH_REF.edit(COMMIT.sha)
 
-			#os.remove(f'resources/{FileName}')
+			try:
+				REPOSITORY.delete_file("initialcommit", "", REPOSITORY.get_contents("initialcommit").sha, branch=ASKED_BRANCH)
+			except:
+				print('there is no such file to delete')
 
+	return EXIT_SUCESS
+
+def main(BRANCH):
+
+	## GET FILES IN /RESOURCES FOLDER
+	FILESLIST = next(os.walk('resources'))[1]
+	NB_FILES  = len(FILESLIST)
+
+	# if there is no file in the directory
+	if NB_FILES == 0:
+		print(bcolors.FAIL + 'You need to place all your mods resource in the /resources folder following this : "/resources/<asset_name>/..."\nEx: /resources/botania/...' + bcolors.ENDC)
+		return EXIT_FAIL
+
+	## LOGIN TO GITHUB API w/ TOKEN
+	USER = Github(GetToken())
+
+	# test if user gave a valid token
+	try:
+		USER.get_repo(f"Faithful-Mods/faithful-mods.github.io")
 	except BadCredentialsException:
-		print(bcolors.FAIL + 'Wrong Token has been given, change it in your local files : /user_settings/token_github.txt' + bcolors.ENDC)
+		print(bcolors.FAIL + 'Invalid Token provided, please update this file /user_settings/token_github.txt with a valid token')
 		return EXIT_FAIL
 	else:
-		return EXIT_SUCESS
+
+		## INSERT TITLE HERE
+		for FILENAME in FILESLIST:
+			print(f' => WATCHING {FILENAME} :')
+			CommitToGitHub(USER,FILENAME,BRANCH)
 
 main(sys.argv[1])
