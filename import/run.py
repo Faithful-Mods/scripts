@@ -37,13 +37,12 @@ if CHOICE == 'y' or CHOICE == 'yes' or CHOICE == 'Y' or CHOICE == 'YES':
 	print(' [' + bcolors.HEADER + '2' + bcolors.ENDC + '/?] Load settings...\n')
 	print('------------------------------------------------------------')
 	os.system(f'python py\\check_settings.py "{MCVERSION}"')
-	print(f'Mods list local path : {MODLISTPATH}')
+	print('Mods list local path     : ' + bcolors.OKBLUE + f'{MODLISTPATH}' + bcolors.ENDC)
 	print('\n------------------------------------------------------------\n')
 	print(' [' + bcolors.HEADER + '3' + bcolors.ENDC + '/?] Import Files to GitHub...\n')
 	print('------------------------------------------------------------')
 	os.system(f'python py\\github_import.py "{MCVERSION}" "{MODLISTPATH}"')
 
-	
 	# to avoid : delete repo from google when it crashed, will be removed
 	if input('Should delete repo? [y/n] ') == 'y':
 		os.system('python py\\delete_repo.py "testingscriptrepo"')
