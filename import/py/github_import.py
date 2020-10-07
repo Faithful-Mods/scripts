@@ -33,7 +33,25 @@ def GetToken():
 
 	return token
 
+def UpdateTopics(USER,FILENAME):
+	TOPICS = list()
+	TOPICS.append(FILENAME)
+
+	REPOSITORY = USER.get_repo(f'Faithful-Mods/{FILENAME}')
+	BRANCHES = REPOSITORY.get_branches()
+
+	for BRANCH in BRANCHES:
+		if BRANCH.name != 'main':
+			TOPICS.append(BRANCH.name.replace('.','-'))
+
+	REPOSITORY.replace_topics(TOPICS)
+
+	return EXIT_SUCESS
+
 def CommitToGitHub(USER,FILENAME,ASKED_BRANCH):
+
+	MOD_NAME    = ''
+	MOD_NAME_CF = ''
 
 	## FIRST : TEST IF REPO EXIST
 	try:
@@ -124,12 +142,14 @@ def CommitToGitHub(USER,FILENAME,ASKED_BRANCH):
 			COMMIT = REPOSITORY.create_git_commit('Upload files from script', NEW_BRANCH_TREE, [REPOSITORY.get_git_commit(BRANCH_SHA)])
 			BRANCH_REF.edit(COMMIT.sha)
 
+			print(bcolors.OKGREEN + '       Commit sucessfully sent' + bcolors.ENDC)
+
 			try:
 				REPOSITORY.delete_file("initialcommit", "", REPOSITORY.get_contents("initialcommit").sha, branch=ASKED_BRANCH)
 			except:
-				print('there is no such file to delete')
+				pass
 
-	return EXIT_SUCESS
+	return MOD_NAME, MOD_NAME_CF
 
 def main(BRANCH):
 
@@ -156,6 +176,7 @@ def main(BRANCH):
 		## INSERT TITLE HERE
 		for FILENAME in FILESLIST:
 			print(f' => WATCHING {FILENAME} :')
-			CommitToGitHub(USER,FILENAME,BRANCH)
+			MOD_NAME, MOD_NAME_CF = CommitToGitHub(USER,FILENAME,BRANCH)
+			UpdateTopics(USER,FILENAME)
 
 main(sys.argv[1])
