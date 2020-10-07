@@ -119,7 +119,7 @@ def main(AskedBranch):
 					with open(entry, 'rb') as input_file:
 						data = input_file.read()
 
-					blob = repo.create_git_blob(str(base64.b64encode(data)).replace("b'","").replace("'",""), 'utf-8')
+					blob = repo.create_git_blob(str(base64.b64encode(data)).replace("b'","").replace("'",""), 'base64')
 				
 				else:
 					with open(entry, encoding='utf-8', errors='ignore') as input_file:
