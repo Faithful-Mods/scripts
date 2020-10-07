@@ -1,6 +1,8 @@
 import os
 import sys
+import json
 import base64
+import requests
 from github import Github
 from github import InputGitTreeElement
 from github import BadCredentialsException
@@ -46,13 +48,18 @@ def main(AskedBranch):
 	try:
 		# looping in /resources for all files
 		for FileName in onlyfiles:
+
+			EXIST_ALREADY_REPO   = True
+			EXIST_ALREADY_BRANCH = True
+
 			print('Watching :',FileName)
 
 			# try to find an existing repository
 			try:
 				repo = g.get_repo(f"Faithful-Mods/{FileName}")
 			except:
-				print('[x] -> Repository not found, creating one...')
+				EXIST_ALREADY_REPO = False
+				print('[' + bcolors.FAIL + 'x' + bcolors.ENDC + '] -> Repository not found, creating one...')
 
 				# Information used in mods.json (mods list) & GitHub repos:
 				MOD_NAME    = input('      - Mod Name       : ')
@@ -71,26 +78,41 @@ def main(AskedBranch):
 				)
 
 				repo = g.get_repo(f"Faithful-Mods/{FileName}")
-				# initial commit : used to create a default branch -> allow us to add a new branch (if not: the repo is "empty")
+				# initial commit
 				repo.create_file("initialcommit.txt", "initial commit", "")
 				init = repo.get_contents("initialcommit.txt")
-				
-			print('[v] -> Repository found, checking branches...')
+
+			print('[' + bcolors.OKGREEN + 'v' + bcolors.ENDC + '] -> Repository found, looking for branch...')
 
 			# try to find the right branch : if not found -> create a new one
 			try:
 				repo.get_branch(branch=AskedBranch)
 			except:
-				print('[x] -> Branch not found, creating one...')
-				# Why GitHub ??!
+				EXIST_ALREADY_BRANCH = False
+
+				print('[' + bcolors.FAIL + 'x' + bcolors.ENDC + '] -> Branch not found, creating one...')
+
 				try:
-					sb = repo.get_branch('main') # since 1st october 2020, every new repo as main as default branch instead of master
+					sb = repo.get_branch(repo.default_branch)
 				except:
-					sb = repo.get_branch('master')
-
+					print(bcolors.FAIL + 'Something went wrong when getting default branch' + bcolors.ENDC)
+					return EXIT_FAIL
+	
 				repo.create_git_ref(ref='refs/heads/' + AskedBranch, sha=sb.commit.sha)
-
-			print('[v] -> Branch found, looking for files to push...')
+				# create a new branch : copied from default branch : need to be cleaned
+				url = f"https://api.github.com/repos/Faithful-Mods/{FileName}/git/trees/{AskedBranch}?recursive=1"
+				res = requests.get(url).json()
+				
+				### NEED TO FIND A WAY TO DELETE ALL FILES IN THE SAME COMMIT : LESS TIME CONSUMER
+				## it actually make a commit for each deleted file
+				for file in res["tree"]:
+					if file["path"] != 'pack.png':
+						try:
+							repo.delete_file(file["path"], "remove files from the main branch", file["sha"], branch=AskedBranch)
+						except:
+							pass
+				
+			print('[' + bcolors.OKGREEN + 'v' + bcolors.ENDC + '] -> Branch found, looking for files to push...')
 
 			file_list  = ['resources\\pack.mcmeta','resources\\pack.png']
 			file_names = ['pack.mcmeta','pack.png']
@@ -113,7 +135,7 @@ def main(AskedBranch):
 			element_list = list()
 
 			for i, entry in enumerate(file_list):
-				print(f'       Adding file n°{i} : {entry}')
+				print(f'       Adding file n°{i+1} : {entry}')
 				
 				if entry.endswith('.png'):
 					with open(entry, 'rb') as input_file:
@@ -133,6 +155,7 @@ def main(AskedBranch):
 				element = InputGitTreeElement(path=entry.replace('resources','assets').replace('\\','/'), mode='100644', type='blob', sha=blob.sha)
 				element_list.append(element)
 
+			print(bcolors.OKBLUE + '       Sending commit' + bcolors.ENDC)
 			tree = repo.create_git_tree(element_list, base_tree)
 			parent = repo.get_git_commit(master_sha)
 			commit = repo.create_git_commit(commit_message, tree, [parent])
@@ -146,9 +169,28 @@ def main(AskedBranch):
 
 			try:
 				#delete initial commit when the repo has been created
-				repo.delete_file(init.path, "remove useless file", init.sha, branch='main')
+				repo.delete_file(init.path, "remove useless file", init.sha, branch=repo.default_branch)
 			except:
 				pass
+
+
+			# the branch doesn't exist and have been created : adding it to mods list file 
+			if EXIST_ALREADY_BRANCH == False:
+				# only branch need to be added:
+				if EXIST_ALREADY_REPO == True:
+					ModData = { "isNew": False, "branch": AskedBranch }
+				else:
+					ModData = { "isNew": True, "name": [ MOD_NAME, FileName, MOD_NAME_CF ], "branch": AskedBranch }
+
+				with open('resources/mods.json', 'r+') as ModList:
+					if ModList.read() != '':
+						ModList.write(',\n')
+					json.dump(ModData, ModList)
+
+			# update repo topics :
+			
+
+			#os.remove(f'resources/{FileName}')
 
 	except BadCredentialsException:
 		print(bcolors.FAIL + 'Wrong Token has been given, change it in your local files : /user_settings/token_github.txt' + bcolors.ENDC)
