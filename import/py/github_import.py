@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import base64
+import requests
 from github import Github
 from github import InputGitTreeElement
 from github import BadCredentialsException
@@ -152,9 +153,10 @@ def CommitToGitHub(USER,FILENAME,ASKED_BRANCH):
 
 
 ############ EXPERIMENTAL : NEVER TESTED ############
-def AddToModList(REPOSITORY,PATH,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME):
-	with open(PATH, 'r') as FILE:
-		data = json.loads(FILE.read())
+def AddToModList(REPOSITORY,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME):
+
+	# get mod list from url:
+	data = requests.get('https://raw.githubusercontent.com/Faithful-Mods/faithful-mods.github.io/master/data/mods.json').json()
 
 	BRANCHES = REPOSITORY.get_branches()
 	totalmod = len(data)
@@ -183,14 +185,7 @@ def AddToModList(REPOSITORY,PATH,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME)
 		data.append({"name": [ MOD_NAME, MOD_ASSET_NAME, MOD_NAME_CF ], "versions": versions, "repository": "Faithful-Mods"})
 
 		# sort mod list :
-		tmp = []
-		for i in range(0,totalmod+1):
-			tmp.append(data[i])
-		tmp = sorted(tmp)
-		data = [tmp]
-		print(data)
-
-		# DOES NOT WORK YET	data = sorted(dict(data))
+		data = sorted(data, key=lambda k: k['name'][0])
 
 		commit = True
 
@@ -219,7 +214,8 @@ def AddToModList(REPOSITORY,PATH,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME)
 			data[modpos]['versions'] = versions
 
 	if commit == True:
-		with open(PATH, 'w') as FILE:
+
+		with open('resources/tmp_mods.json', 'w+') as FILE:
 			json.dump(data, FILE)
 
 		# UPDATE mods.json IN REPOSITORY
@@ -231,10 +227,10 @@ def AddToModList(REPOSITORY,PATH,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME)
 
 		ELEMENTS_LIST = list()
 			
-		with open(PATH, 'r') as FILE:
+		with open('resources/tmp_mods.json', 'r') as FILE:
 			DATA = FILE.read()
 		BLOB = WEBSITE_REPOSITORY.create_git_blob(str(DATA),'utf-8')
-		ELEMENTS_LIST.append(InputGitTreeElement(path='data/modsTESTSCRIPT.json', mode='100644', type='blob', sha=BLOB.sha))
+		ELEMENTS_LIST.append(InputGitTreeElement(path='data/mods.json', mode='100644', type='blob', sha=BLOB.sha))
 
 		print('Adding mod to modlist')
 		NEW_BRANCH_TREE = WEBSITE_REPOSITORY.create_git_tree(ELEMENTS_LIST, BRANCH_TREE)
@@ -242,9 +238,11 @@ def AddToModList(REPOSITORY,PATH,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME)
 		BRANCH_REF.edit(COMMIT.sha)
 		print('Mod added to modlist')
 
+		os.remove('resources/tmp_mods.json')
+
 	return EXIT_SUCESS
 
-def main(BRANCH,PATH):
+def main(BRANCH):
 
 	## GET FILES IN /RESOURCES FOLDER
 	FILESLIST = next(os.walk('resources'))[1]
@@ -271,6 +269,7 @@ def main(BRANCH,PATH):
 			print(f' => WATCHING {FILENAME} :')
 			REPOSITORY, MOD_NAME, MOD_NAME_CF = CommitToGitHub(USER,FILENAME,BRANCH)
 			UpdateTopics(USER,FILENAME)
-			AddToModList(REPOSITORY,PATH,BRANCH,MOD_NAME,MOD_NAME_CF,FILENAME)
+			AddToModList(REPOSITORY,BRANCH,MOD_NAME,MOD_NAME_CF,FILENAME)
+			os.remove('resources/{FILENAME}')
 
-main(sys.argv[1],sys.argv[2])
+main(sys.argv[1])
