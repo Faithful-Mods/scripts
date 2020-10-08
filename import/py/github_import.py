@@ -148,75 +148,99 @@ def CommitToGitHub(USER,FILENAME,ASKED_BRANCH):
 			except:
 				pass
 
-	return MOD_NAME, MOD_NAME_CF
+	return REPOSITORY, MOD_NAME, MOD_NAME_CF
 
 
 ############ EXPERIMENTAL : NEVER TESTED ############
-def AddToModList(USER,PATH,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME):
+def AddToModList(REPOSITORY,PATH,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME):
 	with open(PATH, 'r') as FILE:
-		json_data = json.loads(FILE.read())
+		data = json.loads(FILE.read())
 
-	REPOSITORY = USER.get_repo(f'{MOD_ASSET_NAME}')
 	BRANCHES = REPOSITORY.get_branches()
-
+	totalmod = len(data)
 	modpos = -1
 	verpos = -1
 
-	for i in range(0,len(json_data)):
+	for i in range(0,totalmod):
 		# check if MOD_ASSET_NAME is already in the mods list:
-		if json_data[i]['name'][1] == MOD_ASSET_NAME:
+		if data[i]['name'][1] == MOD_ASSET_NAME:
 			modpos = i
 			break
 	
+	# IF MODLIST DOES NOT HAVE MOD YET:
 	if modpos == -1:
-		######## NEED TO ADD MOD ALPHABETICALLY ########
-		# & VERIFY IF : ADD MC VERSIONS & ADD REPO
 
-		# add names:
-		json_data[????]['name'][0] = MOD_NAME
-		json_data[????]['name'][1] = MOD_ASSET_NAME
-		json_data[????]['name'][2] = MOD_NAME_CF
+		print('mod not found in modlist, commit needed...')
 
-		# add mc versions:
-		j = 0
+		# add versions:
+		versions = []
 		for BRANCH in BRANCHES:
-			json_data[????]['versions'][j] = BRANCH.name
-			j+=1
+			if BRANCH.name != 'main':
+				versions.append(BRANCH.name)
+		versions.reverse()
 
-		# add repo:
-		json_data[????]['repository'] = 'Faithful-Mods'
+		# add mod to modlist json
+		data.append({"name": [ MOD_NAME, MOD_ASSET_NAME, MOD_NAME_CF ], "versions": versions, "repository": "Faithful-Mods"})
 
+		# sort mod list :
+		tmp = []
+		for i in range(0,totalmod+1):
+			tmp.append(data[i])
+		tmp = sorted(tmp)
+		data = [tmp]
+		print(data)
+
+		# DOES NOT WORK YET	data = sorted(dict(data))
+
+		commit = True
+
+	# IF MODLIST ALREADY HAVE THE MOD :
 	else:
+		print('mod found in modlist, checking minecraft versions...')
+
 		# THEN CHECK IF MOD MODLIST ALREADY HAVE MC VERSION
-		for i in range(0,json_data[modpos]['versions']):
-			if json_data[modpos]['versions'][i] == MC_VERSION:
+		for i in range(0,len(data[modpos]['versions'])):
+			if data[modpos]['versions'][i] == MC_VERSION:
+				print('minecraft version found, commit not needed')
 				verpos = i
+				commit = False
 				break
 
-		# the branch doesn't exist as a version
+		# MODLIST DOES NOT HAVE MC VERSION FOR THAT MOD:
 		if verpos == -1 :
-			j = 0
+			print('minecraft version not found, commit needed')
+			commit = True
+
+			versions = []
 			for BRANCH in BRANCHES:
-				json_data[i]['versions'][j] = BRANCH.name
-				j+=1
+				if BRANCH.name != 'main':
+					versions.append(BRANCH.name)
+			versions.reverse()
+			data[modpos]['versions'] = versions
 
-	###### HERE : SAVE MODIFIED JSON INTO THE LOCAL FILE BEFORE COMMIT TO GITHUB ########
+	if commit == True:
+		with open(PATH, 'w') as FILE:
+			json.dump(data, FILE)
 
-	# UPDATE mods.json IN REPOSITORY
-	BRANCH_REF  = REPOSITORY.get_git_ref(f'heads/master')
-	BRANCH_SHA  = BRANCH_REF.object.sha
-	BRANCH_TREE = REPOSITORY.get_git_tree(BRANCH_SHA)
+		# UPDATE mods.json IN REPOSITORY
+		USER = Github(GetToken())
+		WEBSITE_REPOSITORY = USER.get_repo('Faithful-Mods/faithful-mods.github.io')
+		BRANCH_REF  = WEBSITE_REPOSITORY.get_git_ref(f'heads/master')
+		BRANCH_SHA  = BRANCH_REF.object.sha
+		BRANCH_TREE = WEBSITE_REPOSITORY.get_git_tree(BRANCH_SHA)
 
-	ELEMENTS_LIST = list()
-	
-	with open(PATH, 'r') as FILE:
-		DATA = FILE.read()
-	BLOB = REPOSITORY.create_git_blob(str(DATA),'utf-8')
-	ELEMENTS_LIST.append(InputGitTreeElement(path='data/modsTESTSCRIPT.json', mode='100644', type='blob', sha=BLOB.sha))
+		ELEMENTS_LIST = list()
+			
+		with open(PATH, 'r') as FILE:
+			DATA = FILE.read()
+		BLOB = WEBSITE_REPOSITORY.create_git_blob(str(DATA),'utf-8')
+		ELEMENTS_LIST.append(InputGitTreeElement(path='data/modsTESTSCRIPT.json', mode='100644', type='blob', sha=BLOB.sha))
 
-	NEW_BRANCH_TREE = REPOSITORY.create_git_tree(ELEMENTS_LIST, BRANCH_TREE)
-	COMMIT = REPOSITORY.create_git_commit(f'Added {MOD_ASSET_NAME} mods for {MC_VERSION}', NEW_BRANCH_TREE, [REPOSITORY.get_git_commit(BRANCH_SHA)])
-	BRANCH_REF.edit(COMMIT.sha)
+		print('Adding mod to modlist')
+		NEW_BRANCH_TREE = WEBSITE_REPOSITORY.create_git_tree(ELEMENTS_LIST, BRANCH_TREE)
+		COMMIT = WEBSITE_REPOSITORY.create_git_commit(f'Added {MOD_ASSET_NAME} mods for {MC_VERSION}', NEW_BRANCH_TREE, [WEBSITE_REPOSITORY.get_git_commit(BRANCH_SHA)])
+		BRANCH_REF.edit(COMMIT.sha)
+		print('Mod added to modlist')
 
 	return EXIT_SUCESS
 
@@ -245,8 +269,8 @@ def main(BRANCH,PATH):
 		## INSERT TITLE HERE
 		for FILENAME in FILESLIST:
 			print(f' => WATCHING {FILENAME} :')
-			MOD_NAME, MOD_NAME_CF = CommitToGitHub(USER,FILENAME,BRANCH)
+			REPOSITORY, MOD_NAME, MOD_NAME_CF = CommitToGitHub(USER,FILENAME,BRANCH)
 			UpdateTopics(USER,FILENAME)
-			AddToModList(USER,PATH,BRANCH,MOD_NAME,MOD_NAME_CF,FILENAME)
+			AddToModList(REPOSITORY,PATH,BRANCH,MOD_NAME,MOD_NAME_CF,FILENAME)
 
 main(sys.argv[1],sys.argv[2])
