@@ -49,6 +49,7 @@ def UpdateTopics(USER,FILENAME):
 	return EXIT_SUCESS
 
 def CommitToGitHub(USER,FILENAME,ASKED_BRANCH):
+	global nb_commit
 
 	MOD_NAME    = ''
 	MOD_NAME_CF = ''
@@ -118,8 +119,9 @@ def CommitToGitHub(USER,FILENAME,ASKED_BRANCH):
 
 			ELEMENTS_LIST = list()
 
-			for i, ENTRY in enumerate(FILESLIST):
-				print(f'       Adding file n°{i+1} : {ENTRY}')
+			for ENTRY in enumerate(FILESLIST):
+				nb_commit += 1
+				# useless time consumer : print(f'       Adding file n°{i+1} : {ENTRY}')
 					
 				if ENTRY.endswith('.png'):
 					with open(ENTRY, 'rb') as FILE:
@@ -142,7 +144,7 @@ def CommitToGitHub(USER,FILENAME,ASKED_BRANCH):
 			COMMIT = REPOSITORY.create_git_commit('Upload files from script', NEW_BRANCH_TREE, [REPOSITORY.get_git_commit(BRANCH_SHA)])
 			BRANCH_REF.edit(COMMIT.sha)
 
-			print(bcolors.OKGREEN + '       Commit sucessfully sent' + bcolors.ENDC)
+			print(bcolors.OKGREEN + '       Sucess' + bcolors.ENDC)
 
 			try:
 				REPOSITORY.delete_file("initialcommit", "", REPOSITORY.get_contents("initialcommit").sha, branch=ASKED_BRANCH)
@@ -151,13 +153,18 @@ def CommitToGitHub(USER,FILENAME,ASKED_BRANCH):
 
 	return REPOSITORY, MOD_NAME, MOD_NAME_CF
 
-
-############ EXPERIMENTAL : NEVER TESTED ############
-def AddToModList(REPOSITORY,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME):
-
-	# get mod list from url:
+def GetModList():
+	# get mod list from website repo url:
 	data = requests.get('https://raw.githubusercontent.com/Faithful-Mods/faithful-mods.github.io/master/data/mods.json').json()
 
+	with open('resources/tmp_mods.json', 'w+') as FILE:
+		json.dump(data, FILE)
+
+def AddToModList(REPOSITORY,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME):
+
+	with open('resources/tmp_mods.json', 'r') as FILE:
+		data = json.load(FILE)
+	
 	BRANCHES = REPOSITORY.get_branches()
 	totalmod = len(data)
 	modpos = -1
@@ -172,7 +179,7 @@ def AddToModList(REPOSITORY,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME):
 	# IF MODLIST DOES NOT HAVE MOD YET:
 	if modpos == -1:
 
-		print('mod not found in modlist, commit needed...')
+		print('[' + bcolors.FAIL + 'x' + bcolors.ENDC + '] -> This mod is not in the list, adding it...')
 
 		# add versions:
 		versions = []
@@ -191,19 +198,19 @@ def AddToModList(REPOSITORY,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME):
 
 	# IF MODLIST ALREADY HAVE THE MOD :
 	else:
-		print('mod found in modlist, checking minecraft versions...')
+		print('[' + bcolors.OKGREEN + 'v' + bcolors.ENDC + '] -> This mod is in the list, checking MC versions...')
 
 		# THEN CHECK IF MOD MODLIST ALREADY HAVE MC VERSION
 		for i in range(0,len(data[modpos]['versions'])):
 			if data[modpos]['versions'][i] == MC_VERSION:
-				print('minecraft version found, commit not needed')
+				print('[' + bcolors.OKGREEN + 'v' + bcolors.ENDC + '] -> The Mod list already have this MC version...')
 				verpos = i
 				commit = False
 				break
 
 		# MODLIST DOES NOT HAVE MC VERSION FOR THAT MOD:
 		if verpos == -1 :
-			print('minecraft version not found, commit needed')
+			print('[' + bcolors.FAIL + 'x' + bcolors.ENDC + '] -> The Mod list does not have this MC version, adding it...')
 			commit = True
 
 			versions = []
@@ -232,17 +239,16 @@ def AddToModList(REPOSITORY,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME):
 		BLOB = WEBSITE_REPOSITORY.create_git_blob(str(DATA),'utf-8')
 		ELEMENTS_LIST.append(InputGitTreeElement(path='data/mods.json', mode='100644', type='blob', sha=BLOB.sha))
 
-		print('Adding mod to modlist')
+		print(bcolors.OKBLUE + '       Sending Mod list commit' + bcolors.ENDC)
 		NEW_BRANCH_TREE = WEBSITE_REPOSITORY.create_git_tree(ELEMENTS_LIST, BRANCH_TREE)
 		COMMIT = WEBSITE_REPOSITORY.create_git_commit(f'Added {MOD_ASSET_NAME} mods for {MC_VERSION}', NEW_BRANCH_TREE, [WEBSITE_REPOSITORY.get_git_commit(BRANCH_SHA)])
 		BRANCH_REF.edit(COMMIT.sha)
-		print('Mod added to modlist')
-
-		os.remove('resources/tmp_mods.json')
+		print(bcolors.OKGREEN + '       Sucess' + bcolors.ENDC)
 
 	return EXIT_SUCESS
 
 def main(BRANCH):
+	global nb_commit
 
 	## GET FILES IN /RESOURCES FOLDER
 	FILESLIST = next(os.walk('resources'))[1]
@@ -264,12 +270,19 @@ def main(BRANCH):
 		return EXIT_FAIL
 	else:
 
+		GetModList()
+
+		nb_commit = 0
+
 		## INSERT TITLE HERE
 		for FILENAME in FILESLIST:
 			print(f' => WATCHING {FILENAME} :')
+			print(f'    You already commited: {nb_commit} :')
 			REPOSITORY, MOD_NAME, MOD_NAME_CF = CommitToGitHub(USER,FILENAME,BRANCH)
 			UpdateTopics(USER,FILENAME)
 			AddToModList(REPOSITORY,BRANCH,MOD_NAME,MOD_NAME_CF,FILENAME)
-			os.remove('resources/{FILENAME}')
+			#os.remove(f'resources/{FILENAME}')
+
+		os.remove('resources/tmp_mods.json')
 
 main(sys.argv[1])
