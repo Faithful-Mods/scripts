@@ -1,4 +1,5 @@
 
 # all settings are hidden
 user_settings/**
+import/resources/**
 user_settings/token_github.txt
