@@ -35,7 +35,7 @@ def GetToken():
 
 def UpdateTopics(USER,FILENAME):
 	TOPICS = list()
-	TOPICS.append(FILENAME)
+	TOPICS.append(FILENAME.replace('_','-'))
 
 	REPOSITORY = USER.get_repo(f'Faithful-Mods/{FILENAME}')
 	BRANCHES = REPOSITORY.get_branches()
@@ -119,9 +119,13 @@ def CommitToGitHub(USER,FILENAME,ASKED_BRANCH):
 
 			ELEMENTS_LIST = list()
 
-			for ENTRY in enumerate(FILESLIST):
+			print(bcolors.WARNING + f'       {len(FILESLIST)} files to commit' + bcolors.ENDC)
+			if (nb_commit + len(FILESLIST)) > 5000:
+				print(bcolors.WARNING + f'       You reach 5000 files limitation, be aware!' + bcolors.ENDC)
+
+			for ENTRY in FILESLIST:
 				nb_commit += 1
-				# useless time consumer : print(f'       Adding file n°{i+1} : {ENTRY}')
+				print(f'       Adding : {ENTRY}')
 					
 				if ENTRY.endswith('.png'):
 					with open(ENTRY, 'rb') as FILE:
@@ -277,7 +281,7 @@ def main(BRANCH):
 		## INSERT TITLE HERE
 		for FILENAME in FILESLIST:
 			print(f' => WATCHING {FILENAME} :')
-			print(f'    You already commited: {nb_commit} :')
+			print(f'    You already commited: {nb_commit}')
 			REPOSITORY, MOD_NAME, MOD_NAME_CF = CommitToGitHub(USER,FILENAME,BRANCH)
 			UpdateTopics(USER,FILENAME)
 			AddToModList(REPOSITORY,BRANCH,MOD_NAME,MOD_NAME_CF,FILENAME)
