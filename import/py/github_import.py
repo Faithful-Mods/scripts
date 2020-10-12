@@ -162,7 +162,7 @@ def GetModList():
 	data = requests.get('https://raw.githubusercontent.com/Faithful-Mods/faithful-mods.github.io/master/data/mods.json').json()
 
 	with open('resources/tmp_mods.json', 'w+') as FILE:
-		json.dump(data, FILE)
+		json.dump(data, FILE, indent=1)
 
 def AddToModList(REPOSITORY,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME):
 
@@ -227,7 +227,7 @@ def AddToModList(REPOSITORY,MC_VERSION,MOD_NAME,MOD_NAME_CF,MOD_ASSET_NAME):
 	if commit == True:
 
 		with open('resources/tmp_mods.json', 'w+') as FILE:
-			json.dump(data, FILE)
+			json.dump(data, FILE, indent=1)
 
 		# UPDATE mods.json IN REPOSITORY
 		USER = Github(GetToken())
@@ -278,7 +278,7 @@ def main(BRANCH):
 
 		nb_commit = 0
 
-		## INSERT TITLE HERE
+		## IMPORT TO GITHUB
 		for FILENAME in FILESLIST:
 			print(f' => WATCHING {FILENAME} :')
 			print(f'    You already commited: {nb_commit}')
@@ -288,5 +288,7 @@ def main(BRANCH):
 			#os.remove(f'resources/{FILENAME}')
 
 		os.remove('resources/tmp_mods.json')
+
+		## REMOVE LOCAL FILE
 
 main(sys.argv[1])
